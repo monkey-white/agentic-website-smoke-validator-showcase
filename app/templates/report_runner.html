@@ -29,6 +29,19 @@
       font-size: 28px;
     }
 
+    .brand-heading {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      color: #1a6a52;
+      flex: none;
+      height: 40px;
+      width: 40px;
+    }
+
     .intro {
       color: #43515d;
       margin-top: 10px;
@@ -137,7 +150,14 @@
 </head>
 <body>
   <main>
-    <h1>Website Smoke Validator</h1>
+    <div class="brand-heading">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="2" y="2" width="36" height="36" rx="10" fill="currentColor"></rect>
+        <circle cx="18" cy="18" r="7" fill="none" stroke="#ffffff" stroke-width="2.5"></circle>
+        <path d="m23 23 6 6m-14-11 2.5 2.5L22 16" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+      </svg>
+      <h1>Website Smoke Validator</h1>
+    </div>
     <p class="intro">Run a safe, lightweight smoke check against a public website.</p>
 
     <form id="report-form">
