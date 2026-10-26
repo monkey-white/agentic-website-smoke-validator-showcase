@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Website Smoke Validator</title>
+  <style>
+    :root {
+      color: #17212b;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #f5f7f8;
+      margin: 0;
+    }
+
+    main {
+      margin: 0 auto;
+      max-width: 760px;
+      padding: 48px 20px;
+    }
+
+    h1, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+    }
+
+    .intro {
+      color: #43515d;
+      margin-top: 10px;
+    }
+
+    form {
+      display: grid;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    label {
+      font-weight: 700;
+    }
+
+    input {
+      border: 1px solid #9aa8b2;
+      border-radius: 4px;
+      font: inherit;
+      padding: 12px;
+    }
+
+    select {
+      border: 1px solid #9aa8b2;
+      border-radius: 4px;
+      font: inherit;
+      padding: 10px 12px;
+    }
+
+    .test-settings {
+      color: #43515d;
+    }
+
+    .test-settings summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .settings-fields {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      max-width: 280px;
+    }
+
+    button {
+      background: #1a6a52;
+      border: 0;
+      border-radius: 4px;
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      justify-self: start;
+      padding: 12px 18px;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    #error-message {
+      color: #be2f35;
+      margin-top: 16px;
+    }
+
+    .execution-status {
+      align-items: center;
+      background: #ffffff;
+      border: 1px solid #d7dee2;
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      padding: 14px;
+    }
+
+    .execution-status[hidden] {
+      display: none;
+    }
+
+    .execution-status progress {
+      accent-color: #1a6a52;
+      flex: 1;
+      height: 12px;
+    }
+
+    .privacy-notice {
+      color: #5c6975;
+      font-size: 13px;
+      margin-top: 84px;
+    }
+
+    .privacy-notice p {
+      margin: 0;
+    }
+
+    .privacy-notice p + p {
+      margin-top: 8px;
+    }
+
+    .privacy-notice a {
+      color: #1a6a52;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Website Smoke Validator</h1>
+    <p class="intro">Run a safe, lightweight smoke check against a public website.</p>
+
+    <form id="report-form">
+      <label for="website-url">Website URL</label>
+      <input id="website-url" inputmode="url" name="website_url" placeholder="example.com or https://example.com" required type="text">
+      <details class="test-settings">
+        <summary>Test settings</summary>
+        <div class="settings-fields">
+          <label for="browser-engine">Browser</label>
+          <select id="browser-engine" name="browser_engine">
+            <option value="chromium" selected>Chromium</option>
+            <option value="firefox">Firefox</option>
+            <option value="webkit">WebKit</option>
+          </select>
+        </div>
+      </details>
+      <button type="submit">Run Smoke Check</button>
+    </form>
+    <section id="execution-status" class="execution-status" hidden role="status" aria-live="polite">
+      <progress aria-label="Smoke check in progress"></progress>
+      <span id="execution-message">Running smoke check</span>
+    </section>
+    <p id="error-message" role="alert"></p>
+    <div class="privacy-notice">
+      <p>We do not store your test data. Your report exists only in this browser tab and is deleted when you close it or start another test. Download the PDF if you want to keep it.</p>
+      <p>This is an educational portfolio showcase for lightweight public-site smoke checks, not an enterprise or production QA service.</p>
+      <p>Questions or feedback? <a href="mailto:support@agenticwebsitesmokevalidator.com">support@agenticwebsitesmokevalidator.com</a></p>
+    </div>
+  </main>
+
+  <script>
+    const form = document.querySelector("#report-form");
+    const input = document.querySelector("#website-url");
+    const browserEngine = document.querySelector("#browser-engine");
+    const button = form.querySelector("button");
+    const errorMessage = document.querySelector("#error-message");
+    const executionStatus = document.querySelector("#execution-status");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = "Running";
+      errorMessage.textContent = "";
+      executionStatus.hidden = false;
+      document.querySelector("#execution-message").textContent = `Running ${browserEngine.options[browserEngine.selectedIndex].text} smoke check`;
+
+      try {
+        const response = await fetch("/api/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            website_url: input.value,
+            browser_engine: browserEngine.value,
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(await getErrorMessage(response));
+        }
+
+        document.open();
+        document.write(await response.text());
+        document.close();
+      } catch (error) {
+        errorMessage.textContent = error.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Run Smoke Check";
+        executionStatus.hidden = true;
+      }
+    });
+
+    async function getErrorMessage(response) {
+      const defaultMessage = "Unable to run the smoke check. Please try again.";
+      const responseText = await response.text();
+
+      try {
+        const error = JSON.parse(responseText);
+        return error.detail || defaultMessage;
+      } catch {
+        if (response.status === 504) {
+          return "Smoke check took too long to complete. Please try again.";
+        }
+        return defaultMessage;
+      }
+    }
+  </script>
+</body>
+</html>

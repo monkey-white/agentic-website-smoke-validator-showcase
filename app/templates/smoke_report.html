@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smoke Test Report</title>
+  <style>
+    :root {
+      color: #17212b;
+      font-family: Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    body {
+      background: #f5f7f8;
+      margin: 0;
+    }
+
+    main {
+      margin: 0 auto;
+      max-width: 1100px;
+      padding: 32px 20px;
+    }
+
+    header {
+      border-bottom: 2px solid #d7dee2;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+    }
+
+    h1, h2, p {
+      margin: 0;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .actions button {
+      background: #1a6a52;
+      border: 0;
+      border-radius: 4px;
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 9px 14px;
+    }
+
+    .actions .secondary-action {
+      background: #ffffff;
+      border: 1px solid #1a6a52;
+      color: #1a6a52;
+    }
+
+    dialog {
+      border: 1px solid #d7dee2;
+      border-radius: 6px;
+      box-shadow: 0 12px 32px rgba(23, 33, 43, 0.25);
+      color: #17212b;
+      max-width: 460px;
+      padding: 24px;
+    }
+
+    dialog::backdrop {
+      background: rgba(23, 33, 43, 0.45);
+    }
+
+    .dialog-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 22px;
+    }
+
+    .dialog-actions button {
+      background: #1a6a52;
+      border: 0;
+      border-radius: 4px;
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 9px 14px;
+    }
+
+    .dialog-actions .cancel-action {
+      background: #ffffff;
+      border: 1px solid #71808b;
+      color: #43515d;
+    }
+
+    .dialog-error {
+      color: #be2f35;
+      margin-top: 14px;
+    }
+
+    .download-status {
+      align-items: center;
+      color: #43515d;
+      display: flex;
+      font-size: 13px;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .download-status[hidden] {
+      display: none;
+    }
+
+    .download-status progress {
+      accent-color: #1a6a52;
+      width: 150px;
+    }
+
+    h1 {
+      font-size: 28px;
+    }
+
+    .url {
+      color: #43515d;
+      margin-top: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .environment {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      margin-top: 14px;
+    }
+
+    .environment-item {
+      color: #43515d;
+      font-size: 13px;
+    }
+
+    .environment-label {
+      color: #5c6975;
+      font-weight: 700;
+    }
+
+    .summary {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(5, minmax(110px, 1fr));
+      margin-bottom: 28px;
+    }
+
+    .metric {
+      background: #ffffff;
+      border: 1px solid #d7dee2;
+      border-radius: 6px;
+      padding: 14px;
+    }
+
+    .metric-label {
+      color: #5c6975;
+      font-size: 13px;
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .report-table {
+      background: #ffffff;
+      border-collapse: collapse;
+      border: 1px solid #d7dee2;
+      width: 100%;
+    }
+
+    .report-table th,
+    .report-table td {
+      border-bottom: 1px solid #d7dee2;
+      padding: 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .report-table th {
+      background: #eaf0f2;
+      font-size: 13px;
+    }
+
+    .test-id {
+      color: #5c6975;
+      font-size: 12px;
+      white-space: nowrap;
+      width: 78px;
+    }
+
+    .status {
+      font-weight: 700;
+    }
+
+    .status-passed {
+      color: #147a46;
+    }
+
+    .status-failed {
+      color: #be2f35;
+    }
+
+    .status-skipped {
+      color: #6b5a1b;
+    }
+
+    .details {
+      color: #43515d;
+      font-size: 13px;
+      margin: 4px 0 0;
+      padding-left: 18px;
+    }
+
+    .ai-analysis {
+      border-left: 3px solid #1a6a52;
+      color: #43515d;
+      font-size: 13px;
+      margin: 8px 0 0;
+      padding-left: 10px;
+    }
+
+    .ai-analysis-label {
+      color: #17212b;
+      font-weight: 700;
+    }
+
+    @media (max-width: 700px) {
+      .summary {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+
+      .report-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+
+    @media print {
+      @page {
+        margin: 12mm;
+        size: A4;
+      }
+
+      body {
+        background: #ffffff;
+      }
+
+      main {
+        max-width: none;
+        padding: 0;
+      }
+
+      .actions,
+      .download-status,
+      dialog {
+        display: none;
+      }
+
+      .report-table thead {
+        display: table-header-group;
+      }
+
+      .report-table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Smoke Test Report</h1>
+      <p class="url">{{ website_url }}</p>
+      <section class="environment" aria-label="Test environment">
+        <div class="environment-item"><span class="environment-label">Browser:</span> {{ environment.browser_engine }} {{ environment.browser_version }}</div>
+        <div class="environment-item"><span class="environment-label">Operating system:</span> {{ environment.operating_system }}</div>
+        <div class="environment-item"><span class="environment-label">Viewport:</span> {{ environment.viewport_width }} x {{ environment.viewport_height }}</div>
+        <div class="environment-item"><span class="environment-label">Playwright:</span> {{ environment.playwright_version }}</div>
+      </section>
+      {% if pdf_url %}
+      <div class="actions">
+        <button id="download-pdf" type="button">Download PDF</button>
+        <button id="run-another-test" class="secondary-action" type="button">Run another test</button>
+      </div>
+      <div id="download-status" class="download-status" hidden role="status" aria-live="polite">
+        <progress aria-label="PDF download in progress"></progress>
+        <span>Preparing PDF</span>
+      </div>
+      {% endif %}
+    </header>
+
+    <section class="summary" aria-label="Test summary">
+      <div class="metric"><span class="metric-label">Overall Status</span><span class="metric-value">{{ overall_status }}</span></div>
+      <div class="metric"><span class="metric-label">Total Tests</span><span class="metric-value">{{ total_tests }}</span></div>
+      <div class="metric"><span class="metric-label">Passed</span><span class="metric-value">{{ passed_count }}</span></div>
+      <div class="metric"><span class="metric-label">Failed</span><span class="metric-value">{{ failed_count }}</span></div>
+      <div class="metric" data-warning-count="{{ warning_count }}"><span class="metric-label">Warnings</span><span class="metric-value">{{ warning_count }}</span></div>
+    </section>
+
+    <h2>Test Results</h2>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Test ID</th>
+          <th>Test Case</th>
+          <th>Status</th>
+          <th>Actual Result</th>
+          <th>Duration</th>
+          <th>Diagnostics</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for result in results %}
+        <tr>
+          <td class="test-id">{{ result.test_case_id }}</td>
+          <td>{{ result.title }}</td>
+          <td class="status status-{{ result.status|lower }}">{{ result.status }}</td>
+          <td>{{ result.actual_result }}</td>
+          <td>{{ "%.3f"|format(result.duration_seconds) }}s</td>
+          <td>
+            {% set failure_analysis = diagnostic_analyses.get(("failure", result.actual_result)) %}
+            {% if result.console_errors or result.network_errors or result.notes %}
+            <ul class="details">
+              {% for error in result.console_errors %}
+              <li>Console: {{ error }}
+                {% set analysis = diagnostic_analyses.get(("console", error)) %}
+                {% if analysis %}<div class="ai-analysis"><span class="ai-analysis-label">{% if analysis.related_message_count > 1 %}AI interpretation of {{ analysis.related_message_count }} related warnings:{% else %}AI interpretation:{% endif %}</span> {{ analysis.explanation }} Impact: {{ analysis.likely_impact }} Follow-up: {{ analysis.recommended_follow_up }}</div>{% endif %}
+              </li>
+              {% endfor %}
+              {% for error in result.network_errors %}
+              <li>Network: {{ error }}
+                {% set analysis = diagnostic_analyses.get(("network", error)) %}
+                {% if analysis %}<div class="ai-analysis"><span class="ai-analysis-label">AI interpretation:</span> {{ analysis.explanation }} Impact: {{ analysis.likely_impact }} Follow-up: {{ analysis.recommended_follow_up }}</div>{% endif %}
+              </li>
+              {% endfor %}
+              {% for note in result.notes %}
+              <li>Note: {{ note }}
+                {% set analysis = diagnostic_analyses.get(("note", note)) %}
+                {% if analysis %}<div class="ai-analysis"><span class="ai-analysis-label">AI interpretation:</span> {{ analysis.explanation }} Impact: {{ analysis.likely_impact }} Follow-up: {{ analysis.recommended_follow_up }}</div>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            None
+            {% endif %}
+            {% if failure_analysis %}<div class="ai-analysis"><span class="ai-analysis-label">AI interpretation of failed result:</span> {{ failure_analysis.explanation }} Impact: {{ failure_analysis.likely_impact }} Follow-up: {{ failure_analysis.recommended_follow_up }}</div>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+  <dialog id="restart-dialog" aria-labelledby="restart-title">
+    <h2 id="restart-title">Start another smoke check?</h2>
+    <p class="url">This report exists only in this browser tab and will be lost when you continue.</p>
+    <p class="url">Download the PDF first if you want to keep it.</p>
+    <div class="dialog-actions">
+      <button id="cancel-restart" class="cancel-action" type="button">Cancel</button>
+      <button id="proceed-without-download" class="secondary-action" type="button">Proceed without downloading</button>
+      <button id="download-and-proceed" type="button">Download and proceed</button>
+    </div>
+  </dialog>
+  {% if pdf_url %}
+  <script>
+    const downloadButton = document.querySelector("#download-pdf");
+    const downloadStatus = document.querySelector("#download-status");
+
+    async function downloadPdf() {
+      downloadButton.disabled = true;
+      downloadButton.textContent = "Preparing PDF";
+      downloadStatus.hidden = false;
+
+      try {
+        const response = await fetch({{ pdf_url|tojson }}, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            website_url: {{ website_url|tojson }},
+            report_html: document.documentElement.outerHTML,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error("Unable to prepare the PDF.");
+        }
+
+        const downloadUrl = URL.createObjectURL(await response.blob());
+        const contentDisposition = response.headers.get("content-disposition") || "";
+        const filename = contentDisposition.match(/filename="?([^";]+)"?/)?.[1] || "smoke-test-report.pdf";
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+        return true;
+      } catch (error) {
+        return false;
+      } finally {
+        downloadButton.disabled = false;
+        downloadButton.textContent = "Download PDF";
+        downloadStatus.hidden = true;
+      }
+    }
+
+    downloadButton.addEventListener("click", downloadPdf);
+
+    const restartButton = document.querySelector("#run-another-test");
+    const restartDialog = document.querySelector("#restart-dialog");
+    const cancelRestartButton = document.querySelector("#cancel-restart");
+    const proceedButton = document.querySelector("#proceed-without-download");
+    const downloadAndProceedButton = document.querySelector("#download-and-proceed");
+
+    async function proceed(shouldDownload) {
+      proceedButton.disabled = true;
+      downloadAndProceedButton.disabled = true;
+      try {
+        if (shouldDownload && !await downloadPdf()) {
+          throw new Error("The PDF could not be downloaded.");
+        }
+        window.location.assign("/");
+      } catch (error) {
+        window.alert(error.message);
+        proceedButton.disabled = false;
+        downloadAndProceedButton.disabled = false;
+      }
+    }
+
+    restartButton.addEventListener("click", () => restartDialog.showModal());
+    cancelRestartButton.addEventListener("click", () => restartDialog.close());
+    proceedButton.addEventListener("click", () => proceed(false));
+    downloadAndProceedButton.addEventListener("click", () => proceed(true));
+  </script>
+  {% endif %}
+</body>
+</html>
