@@ -9,6 +9,7 @@ from app.services.smoke_executor import (
     _is_safe_navigation_target,
     execute_smoke_test_plan,
 )
+from app.services import smoke_executor
 from app.services.smoke_execution_budget import SmokeExecutionBudget
 from playwright.sync_api import Error as PlaywrightError
 
@@ -30,6 +31,8 @@ class FakeLocator:
     def count(self):
         if self.selector == "body:visible":
             return 1
+        if self.selector == "form:visible":
+            return 0
         if "footer" in self.selector:
             return 1
         if self.selector.endswith(" >> a:visible"):
@@ -209,6 +212,29 @@ def test_execute_smoke_test_plan_runs_default_cases_with_safe_navigation(monkeyp
         "https://example.com/contact",
     ]
     assert context.playwright.browser.closed is True
+
+
+def test_execute_smoke_test_plan_adds_form_check_when_a_form_is_visible(monkeypatch):
+    context = FakePlaywrightContext()
+    monkeypatch.setattr(
+        "app.services.smoke_executor.sync_playwright",
+        lambda: context,
+    )
+    monkeypatch.setattr(
+        "app.services.navigation.validate_public_url",
+        lambda url: url,
+    )
+    monkeypatch.setattr(smoke_executor, "_visible_form_count", lambda _page: 1)
+
+    execution = execute_smoke_test_plan("https://example.com", _default_test_cases())
+
+    form_result = next(
+        result for result in execution.results if result.test_case_id == "SMK-006"
+    )
+    assert form_result.status == "Passed"
+    assert form_result.actual_result == (
+        "Found 1 visible form(s); no data was entered or submitted."
+    )
 
 
 def test_execute_smoke_test_plan_records_navigation_warning(monkeypatch):

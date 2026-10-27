@@ -2,6 +2,25 @@ from app.models.site_profile import SiteProfile
 from app.models.test_case import SmokeTestCase
 
 
+def create_form_availability_test_case() -> SmokeTestCase:
+    return SmokeTestCase(
+        test_case_id="SMK-006",
+        title="Verify a visible form is available without submitting it",
+        priority="Low",
+        type="Smoke",
+        preconditions=["At least one visible form is present on the homepage"],
+        steps=[
+            "Locate a visible form on the homepage",
+            "Verify the form is present",
+            "Do not enter data or submit the form",
+        ],
+        expected_result=(
+            "At least one visible form is available; no data was entered or submitted."
+        ),
+        automation_candidate=True,
+    )
+
+
 def create_default_smoke_test_plan(site_profile: SiteProfile) -> list[SmokeTestCase]:
     return [
         SmokeTestCase(

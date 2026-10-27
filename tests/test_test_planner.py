@@ -1,5 +1,8 @@
 from app.models.site_profile import SiteProfile
-from app.services.test_planner import create_default_smoke_test_plan
+from app.services.test_planner import (
+    create_default_smoke_test_plan,
+    create_form_availability_test_case,
+)
 
 
 def test_create_default_smoke_test_plan_returns_five_tests():
@@ -31,3 +34,12 @@ def test_create_default_smoke_test_plan_includes_homepage_test():
     assert test_plan[0].title == "Verify homepage loads successfully"
     assert test_plan[0].priority == "High"
     assert test_plan[0].automation_candidate is True
+
+
+def test_create_form_availability_test_is_read_only():
+    test_case = create_form_availability_test_case()
+
+    assert test_case.test_case_id == "SMK-006"
+    assert test_case.automation_candidate is True
+    assert "Do not enter data or submit the form" in test_case.steps
+    assert "no data was entered or submitted" in test_case.expected_result
