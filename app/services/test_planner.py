@@ -59,6 +59,23 @@ def create_image_accessibility_test_case() -> SmokeTestCase:
     )
 
 
+def create_link_accessibility_test_case() -> SmokeTestCase:
+    return SmokeTestCase(
+        test_case_id="SMK-009",
+        title="Verify visible links have accessible names",
+        priority="Medium",
+        type="Accessibility",
+        preconditions=["At least one visible link is present on the homepage"],
+        steps=[
+            "Inspect visible links for text or an accessible name",
+            "Include text alternatives from linked images",
+            "Do not follow or activate any link",
+        ],
+        expected_result="Every visible link has an accessible name.",
+        automation_candidate=True,
+    )
+
+
 def create_default_smoke_test_plan(site_profile: SiteProfile) -> list[SmokeTestCase]:
     return [
         SmokeTestCase(

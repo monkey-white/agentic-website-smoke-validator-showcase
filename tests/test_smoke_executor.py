@@ -45,6 +45,8 @@ class FakeLocator:
     def evaluate_all(self, _script: str):
         if self.selector == "img:visible":
             return []
+        if self.selector == "a[href]:visible":
+            return []
         if self.selector.endswith(" >> a:visible"):
             return [
                 "https://example.com/services",
@@ -296,6 +298,36 @@ def test_execute_smoke_test_plan_adds_image_check_when_visible_images_exist(monk
     assert image_result.status == "Failed"
     assert image_result.actual_result == (
         "Found 1 of 2 visible image(s) without alternative text or decorative markup."
+    )
+
+
+def test_execute_smoke_test_plan_adds_link_check_when_visible_links_exist(monkeypatch):
+    context = FakePlaywrightContext()
+    monkeypatch.setattr(
+        "app.services.smoke_executor.sync_playwright",
+        lambda: context,
+    )
+    monkeypatch.setattr(
+        "app.services.navigation.validate_public_url",
+        lambda url: url,
+    )
+    monkeypatch.setattr(smoke_executor, "_visible_form_count", lambda _page: 0)
+    monkeypatch.setattr(smoke_executor, "_visible_form_control_labels", lambda _page: [])
+    monkeypatch.setattr(smoke_executor, "_visible_image_alternatives", lambda _page: [])
+    monkeypatch.setattr(
+        smoke_executor,
+        "_visible_link_accessible_names",
+        lambda _page: [True, False],
+    )
+
+    execution = execute_smoke_test_plan("https://example.com", _default_test_cases())
+
+    link_result = next(
+        result for result in execution.results if result.test_case_id == "SMK-009"
+    )
+    assert link_result.status == "Failed"
+    assert link_result.actual_result == (
+        "Found 1 of 2 visible link(s) without an accessible name."
     )
 
 
