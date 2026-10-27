@@ -4,6 +4,7 @@ from app.services.test_planner import (
     create_form_accessibility_test_case,
     create_form_availability_test_case,
     create_image_accessibility_test_case,
+    create_link_accessibility_test_case,
 )
 
 
@@ -63,3 +64,12 @@ def test_create_image_accessibility_test_is_read_only():
     assert test_case.type == "Accessibility"
     assert test_case.automation_candidate is True
     assert "Do not click or otherwise interact with the images" in test_case.steps
+
+
+def test_create_link_accessibility_test_is_read_only():
+    test_case = create_link_accessibility_test_case()
+
+    assert test_case.test_case_id == "SMK-009"
+    assert test_case.type == "Accessibility"
+    assert test_case.automation_candidate is True
+    assert "Do not follow or activate any link" in test_case.steps

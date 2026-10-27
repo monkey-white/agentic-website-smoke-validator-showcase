@@ -25,6 +25,7 @@ from app.services.test_planner import (
     create_form_accessibility_test_case,
     create_form_availability_test_case,
     create_image_accessibility_test_case,
+    create_link_accessibility_test_case,
 )
 
 
@@ -163,6 +164,11 @@ def _select_adaptive_test_cases(
         test_case.test_case_id == "SMK-008" for test_case in selected_test_cases
     ):
         selected_test_cases.append(create_image_accessibility_test_case())
+
+    if _visible_link_accessible_names(page) and not any(
+        test_case.test_case_id == "SMK-009" for test_case in selected_test_cases
+    ):
+        selected_test_cases.append(create_link_accessibility_test_case())
     return selected_test_cases
 
 
@@ -220,6 +226,28 @@ def _visible_image_alternatives(page: Page) -> list[bool]:
             .filter(Boolean)
             .some(id => Boolean(document.getElementById(id)?.textContent.trim()));
           return isDecorative || hasAlt || hasAriaLabel || hasLabelledBy;
+        })
+        """
+    )
+
+
+def _visible_link_accessible_names(page: Page) -> list[bool]:
+    return page.locator("a[href]:visible").evaluate_all(
+        """
+        links => links.map(link => {
+          const hasAriaLabel = Boolean((link.getAttribute("aria-label") || "").trim());
+          const hasLabelledBy = (link.getAttribute("aria-labelledby") || "")
+            .split(/\\s+/)
+            .filter(Boolean)
+            .some(id => Boolean(document.getElementById(id)?.textContent.trim()));
+          const hasVisibleText = Boolean(link.innerText.trim());
+          const hasImageAlternative = Array.from(link.querySelectorAll("img"))
+            .some(image => Boolean((image.getAttribute("alt") || "").trim()));
+          const hasSvgTitle = Array.from(link.querySelectorAll("svg title"))
+            .some(title => Boolean(title.textContent.trim()));
+          const hasTitle = Boolean((link.getAttribute("title") || "").trim());
+          return hasAriaLabel || hasLabelledBy || hasVisibleText || hasImageAlternative
+            || hasSvgTitle || hasTitle;
         })
         """
     )
@@ -342,6 +370,24 @@ def _evaluate_case(
         return (
             True,
             f"All {len(image_alternatives)} visible image(s) have text alternatives or are marked decorative.",
+            [],
+        )
+
+    if test_case_id == "SMK-009":
+        accessible_names = _visible_link_accessible_names(page)
+        if not accessible_names:
+            return False, "No visible links remained to inspect.", []
+        unnamed_count = sum(not has_name for has_name in accessible_names)
+        if unnamed_count:
+            return (
+                False,
+                f"Found {unnamed_count} of {len(accessible_names)} visible link(s) "
+                "without an accessible name.",
+                [],
+            )
+        return (
+            True,
+            f"All {len(accessible_names)} visible link(s) have accessible names.",
             [],
         )
 
