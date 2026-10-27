@@ -19,6 +19,7 @@ from app.models.smoke_result import SmokeTestResult
 from app.models.test_execution import ExecutionEnvironment, SmokeTestExecution
 from app.models.test_case import SmokeTestCase
 from app.services.navigation import navigate_to_page
+from app.services.browser_policy import browser_launch_options
 from app.services.smoke_execution_budget import SmokeExecutionBudget
 
 
@@ -118,12 +119,7 @@ def execute_smoke_test_plan(
 def _launch_browser(playwright, browser_engine: BrowserEngine) -> Browser:
     browser_type = getattr(playwright, browser_engine.value)
     try:
-        if browser_engine is BrowserEngine.CHROMIUM:
-            return browser_type.launch(
-                headless=True,
-                chromium_sandbox=True,
-            )
-        return browser_type.launch(headless=True)
+        return browser_type.launch(**browser_launch_options(browser_engine.value))
     except PlaywrightError as error:
         raise BrowserEngineUnavailableError(browser_engine) from error
 

@@ -1,6 +1,9 @@
 import ipaddress
+import os
 import socket
 from urllib.parse import urlparse
+
+from app.services.remote_dns import resolve_remote
 
 
 ALLOWED_PORTS = {80, 443}
@@ -50,8 +53,19 @@ def validate_public_url(raw_url: str) -> str:
     if hostname is None:
         raise ValueError("URL must include a valid domain.")
 
-    addresses = _resolve_host_addresses(hostname)
-    if any(not ipaddress.ip_address(address).is_global for address in addresses):
+    if os.getenv("VALIDATOR_DNS_URL"):
+        addresses = resolve_remote(hostname)
+    elif os.getenv("APP_ENV", "").lower() == "production":
+        raise ValueError("URL host could not be resolved.")
+    else:
+        addresses = _resolve_host_addresses(hostname)
+    try:
+        contains_non_public_address = any(
+            not ipaddress.ip_address(address).is_global for address in addresses
+        )
+    except ValueError as error:
+        raise ValueError("URL host could not be resolved.") from error
+    if contains_non_public_address:
         raise ValueError("URL must resolve only to public addresses.")
 
     return normalized_url

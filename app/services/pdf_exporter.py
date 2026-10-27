@@ -1,12 +1,10 @@
 from playwright.sync_api import sync_playwright
+from app.services.browser_policy import browser_launch_options
 
 
 def render_report_pdf(report_html: str) -> bytes:
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            chromium_sandbox=True,
-        )
+        browser = playwright.chromium.launch(**browser_launch_options("chromium"))
         try:
             page = browser.new_page(java_script_enabled=False)
             page.route("**/*", lambda route: route.abort())

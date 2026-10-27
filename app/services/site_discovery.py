@@ -2,6 +2,7 @@ from playwright.sync_api import ConsoleMessage, Page, Response, sync_playwright
 
 from app.models.site_discovery import DiscoveredLink, SiteDiscovery
 from app.services.navigation import navigate_to_page
+from app.services.browser_policy import browser_launch_options
 
 
 MAX_VISIBLE_LINKS = 20
@@ -23,10 +24,7 @@ def discover_site(website_url: str) -> SiteDiscovery:
     network_errors: list[str] = []
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            chromium_sandbox=True,
-        )
+        browser = playwright.chromium.launch(**browser_launch_options("chromium"))
         try:
             page = browser.new_page()
             _register_error_listeners(page, console_errors, network_errors)
