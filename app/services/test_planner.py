@@ -21,6 +21,25 @@ def create_form_availability_test_case() -> SmokeTestCase:
     )
 
 
+def create_form_accessibility_test_case() -> SmokeTestCase:
+    return SmokeTestCase(
+        test_case_id="SMK-007",
+        title="Verify visible form controls have accessible names",
+        priority="Medium",
+        type="Accessibility",
+        preconditions=["At least one visible form control is present on the homepage"],
+        steps=[
+            "Inspect visible input, select, and text area controls",
+            "Check for an associated label or accessible name",
+            "Do not focus, enter data, or submit any control",
+        ],
+        expected_result=(
+            "Every visible form control has an accessible name; no data was entered or submitted."
+        ),
+        automation_candidate=True,
+    )
+
+
 def create_default_smoke_test_plan(site_profile: SiteProfile) -> list[SmokeTestCase]:
     return [
         SmokeTestCase(

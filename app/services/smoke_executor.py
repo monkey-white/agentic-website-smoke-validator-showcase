@@ -21,7 +21,10 @@ from app.models.test_case import SmokeTestCase
 from app.services.navigation import navigate_to_page
 from app.services.browser_policy import browser_launch_options
 from app.services.smoke_execution_budget import SmokeExecutionBudget
-from app.services.test_planner import create_form_availability_test_case
+from app.services.test_planner import (
+    create_form_accessibility_test_case,
+    create_form_availability_test_case,
+)
 
 
 MAX_NAVIGATION_LINKS = 3
@@ -144,11 +147,17 @@ def _select_adaptive_test_cases(
     page: Page,
     test_cases: list[SmokeTestCase],
 ) -> list[SmokeTestCase]:
+    selected_test_cases = list(test_cases)
     if _has_visible_form(page) and not any(
-        test_case.test_case_id == "SMK-006" for test_case in test_cases
+        test_case.test_case_id == "SMK-006" for test_case in selected_test_cases
     ):
-        return [*test_cases, create_form_availability_test_case()]
-    return test_cases
+        selected_test_cases.append(create_form_availability_test_case())
+
+    if _visible_form_control_labels(page) and not any(
+        test_case.test_case_id == "SMK-007" for test_case in selected_test_cases
+    ):
+        selected_test_cases.append(create_form_accessibility_test_case())
+    return selected_test_cases
 
 
 def _has_visible_form(page: Page) -> bool:
@@ -157,6 +166,38 @@ def _has_visible_form(page: Page) -> bool:
 
 def _visible_form_count(page: Page) -> int:
     return page.locator("form:visible").count()
+
+
+def _visible_form_control_labels(page: Page) -> list[bool]:
+    return page.locator("form:visible").evaluate_all(
+        """
+        forms => forms.flatMap(form =>
+          Array.from(form.querySelectorAll("input, select, textarea"))
+            .filter(control => {
+              const type = (control.getAttribute("type") || "").toLowerCase();
+              if (["hidden", "submit", "button", "reset", "image"].includes(type)) {
+                return false;
+              }
+              const style = window.getComputedStyle(control);
+              const bounds = control.getBoundingClientRect();
+              return style.display !== "none" && style.visibility !== "hidden"
+                && bounds.width > 0 && bounds.height > 0;
+            })
+            .map(control => {
+              const hasLabel = Array.from(control.labels || []).some(
+                label => Boolean(label.textContent.trim())
+              );
+              const hasAriaLabel = Boolean((control.getAttribute("aria-label") || "").trim());
+              const hasLabelledBy = (control.getAttribute("aria-labelledby") || "")
+                .split(/\\s+/)
+                .filter(Boolean)
+                .some(id => Boolean(document.getElementById(id)?.textContent.trim()));
+              const hasTitle = Boolean((control.getAttribute("title") || "").trim());
+              return hasLabel || hasAriaLabel || hasLabelledBy || hasTitle;
+            })
+        )
+        """
+    )
 
 
 def _execute_case(
@@ -239,6 +280,23 @@ def _evaluate_case(
         return (
             form_count > 0,
             f"Found {form_count} visible form(s); no data was entered or submitted.",
+            [],
+        )
+
+    if test_case_id == "SMK-007":
+        control_labels = _visible_form_control_labels(page)
+        if not control_labels:
+            return False, "No visible form controls remained to inspect.", []
+        unlabeled_count = sum(not has_label for has_label in control_labels)
+        if unlabeled_count:
+            return (
+                False,
+                f"Found {unlabeled_count} of {len(control_labels)} visible form control(s) without an accessible name.",
+                [],
+            )
+        return (
+            True,
+            f"All {len(control_labels)} visible form control(s) have accessible names; no data was entered or submitted.",
             [],
         )
 
