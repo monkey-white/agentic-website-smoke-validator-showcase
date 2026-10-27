@@ -2,7 +2,7 @@
 
 A portfolio proof of concept for running bounded, read-only smoke checks against public business websites. It uses FastAPI and Playwright to inspect a homepage, execute a small deterministic test plan, and return an HTML report with an optional PDF download.
 
-**Status:** Prototype. The production validator now runs from this showcase repository. Public report submissions are paused at the reverse proxy until edge rate limiting is configured and verified; the homepage and health endpoint remain available.
+**Status:** Prototype. The production validator now runs from this showcase repository. Caddy applies per-IP hourly limits to smoke-report and PDF requests, with the application's smoke-run limit as an additional layer.
 
 ## What it does
 
@@ -21,7 +21,7 @@ The default plan is intentionally small and fixed. Adaptive test selection and r
 - Navigation is bounded to the submitted homepage and up to three same-origin links, with sensitive paths excluded.
 - Reports are not retained by the application. Report data is held in the browser tab; PDF rendering is a one-time request.
 - Production URL checks resolve through the host's internal resolver and route browser traffic through an isolated egress proxy. The proxy and host network must continue blocking private, loopback, link-local, reserved, and cloud metadata destinations, including redirects and subresources.
-- Public report and PDF endpoints are currently blocked at the reverse proxy until edge rate limiting is in place. The app's in-process run limit alone is not sufficient for public access.
+- Caddy limits smoke reports and PDF renders to 10 requests per client IP per hour; IPv6 clients share a `/64` bucket. The application also limits smoke runs to 10 per client IP per hour.
 - Chromium sandboxing must be explicitly enabled and verified in the deployment environment. Review [the deployment guide](docs/DEPLOYMENT.md) before exposing an instance to public traffic.
 
 ## API
@@ -32,8 +32,8 @@ The default plan is intentionally small and fixed. Adaptive test selection and r
 | `GET` | `/` | Report runner UI |
 | `POST` | `/api/intake` | Normalize a submitted URL and return a site profile |
 | `POST` | `/api/test-plan` | Return the default deterministic smoke plan |
-| `POST` | `/api/report` | Execute the smoke plan and return an HTML report; currently paused in production |
-| `POST` | `/api/report.pdf` | Render submitted report HTML as a PDF without retaining it; currently paused in production |
+| `POST` | `/api/report` | Execute the smoke plan and return an HTML report; Caddy rate limits requests in production |
+| `POST` | `/api/report.pdf` | Render submitted report HTML as a PDF without retaining it; Caddy rate limits requests in production |
 
 ## Run locally
 

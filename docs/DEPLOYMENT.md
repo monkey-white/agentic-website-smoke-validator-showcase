@@ -18,14 +18,59 @@ The application opens visitor-supplied URLs. Complete and verify all of the foll
 2. Apply host or cloud-network egress rules that block loopback, private, link-local, reserved, and cloud metadata destinations for IPv4 and IPv6. Cover DNS changes, redirects, and browser subresources, not only the initial URL validation.
 3. Run the browsers as an unprivileged account. Verify Chromium, Firefox, and WebKit under the actual service account and operating system before offering each engine.
 4. Set resource limits for the service. The production container is limited to 3 GiB memory, 2 CPUs, 256 processes, and 512 MiB shared memory. The application permits one in-process browser task at a time.
-5. Add edge rate limiting. The application has a 10-run-per-client-address rolling-hour limit in process memory; it resets on restart and does not replace a proxy or network-edge limit. Configure trusted proxy headers so client addresses are derived only from the proxy.
+5. Apply edge rate limiting. The production Caddy build uses `github.com/mholt/caddy-ratelimit` pinned to commit `5625512f24f6f59d6f64fb3aafe5eecff0b286db`; it limits `POST /api/report` and `POST /api/report.pdf` to 10 requests per client IP per hour, grouping IPv6 clients by `/64`. The app also limits smoke runs to 10 per client per hour. The Caddy limiter protects the service before requests reach FastAPI.
 6. Terminate TLS at the reverse proxy, redirect HTTP to HTTPS, and set HSTS. Keep Uvicorn inaccessible from the public network.
 7. Set proxy request-size and response-time limits. PDF rendering accepts report HTML up to 1,000,000 characters and smoke runs have a 240-second execution budget; allow a reasonable buffer above those limits.
 8. Keep logs free of request bodies, report HTML, secrets, and database URLs. Use short retention and restrict log access.
 
+## Caddy rate-limiter setup
+
+The standard Caddy image does not include the rate-limit handler. Build a pinned custom image and verify `caddy list-modules` includes `http.handlers.rate_limit` before using the Caddyfile rules below. The production build is based on Caddy 2.11.7:
+
+```dockerfile
+FROM caddy:2.11.7-builder AS builder
+RUN xcaddy build v2.11.7 \
+    --with github.com/mholt/caddy-ratelimit@5625512f24f6f59d6f64fb3aafe5eecff0b286db
+
+FROM caddy:2.11.7-alpine
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+```
+
+Place the rate limiter before the upstream handler in the validator site's `route` block:
+
+```caddyfile
+route {
+    rate_limit {
+        zone validator_smoke_runs {
+            match {
+                method POST
+                path /api/report
+            }
+            key {http.request.remote.host}
+            window 1h
+            events 10
+            ipv6_prefix 64
+        }
+        zone validator_pdf_renders {
+            match {
+                method POST
+                path /api/report.pdf
+            }
+            key {http.request.remote.host}
+            window 1h
+            events 10
+            ipv6_prefix 64
+        }
+    }
+    reverse_proxy validator:8010
+}
+```
+
+Verify the limit in an isolated test first, then validate and reload Caddy. Confirm requests within the allowance reach the app and the next request receives 429.
+
 ## Temporary public-submission block
 
-Until edge rate limiting is configured and verified, block `/api/report*` at the reverse proxy while leaving the homepage and `/health` available. The current Caddy deployment uses this route shape:
+If the Caddy rate-limit module is missing or fails its verification, block `/api/report*` at the reverse proxy while leaving the homepage and `/health` available. Use this fail-closed route shape:
 
 ```caddyfile
 handle /api/report* {
@@ -36,7 +81,7 @@ handle {
 }
 ```
 
-The `*` path matcher blocks both `/api/report` and `/api/report.pdf`. Validate the proxy configuration and confirm report requests return 503 before considering the public-submission gate closed. Remove this block only after edge rate limiting and its behavior have been tested.
+The `*` path matcher blocks both `/api/report` and `/api/report.pdf`. Validate the proxy configuration and confirm report requests return 503. Remove this block only after edge rate limiting and its behavior have been tested.
 
 ## Deploying an instance
 
@@ -48,7 +93,7 @@ The `*` path matcher blocks both `/api/report` and `/api/report.pdf`. Validate t
 6. Start a staging container on the existing browser network under a separate name and alias. Set `APP_ENV=production`, `VALIDATOR_DNS_URL=http://resolver:8053`, and `VALIDATOR_HTTP_PROXY=http://egress:3128`; apply the same user, seccomp profile, read-only root, dropped capabilities, and resource limits as production.
 7. Run `python /app/check_network.py` inside that staging container. It must confirm direct egress is blocked, the proxy denies private/reserved/metadata destinations while allowing public HTTPS, and all three browsers are sandboxed and obey that policy. Do not route public requests to a build that fails any check.
 8. Set `COMPOSE_PROJECT_NAME` to the existing host stack name and `VALIDATOR_BROWSER_NETWORK` to its pre-existing isolated browser network. Replace only the `validator` service with `APP_COMMIT_SHA=<full-sha> VALIDATOR_IMAGE_TAG=<full-sha> docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.production.yaml up -d --no-deps validator`. Do not run a broad host stack update.
-9. Verify `GET /health` reports the showcase repository and exact full commit SHA. Confirm the validator is healthy and rerun the network check in production. While the temporary public-submission block is active, verify a representative smoke report and PDF download in staging; after the edge limiter is configured, verify them through the public proxy.
+9. Verify `GET /health` reports the showcase repository and exact full commit SHA. Confirm the validator is healthy and rerun the network check in production. Verify a representative smoke report, PDF download, and edge-limit response through the public proxy.
 10. Keep the previous image ID available for rollback. If verification fails, set `VALIDATOR_IMAGE_TAG=rollback-current` and restart only the validator service; do not remove the preserved image until the new deployment is accepted.
 
 ## Configuration and data
