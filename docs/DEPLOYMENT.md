@@ -12,7 +12,7 @@ This guide describes the showcase deployment on a shared production host. It is 
 
 ## Public deployment gates
 
-The application opens visitor-supplied URLs. Complete and verify all of the following before routing public traffic to it:
+The application opens visitor-supplied URLs. Complete and verify all of the following before enabling public report submissions:
 
 1. Enable Chromium sandboxing at each Chromium launch site. Playwright's `chromium_sandbox` option defaults to false, and this project must explicitly opt in. Do not work around host restrictions with `--no-sandbox` or by globally disabling OS namespace protections.
 2. Apply host or cloud-network egress rules that block loopback, private, link-local, reserved, and cloud metadata destinations for IPv4 and IPv6. Cover DNS changes, redirects, and browser subresources, not only the initial URL validation.
@@ -22,6 +22,21 @@ The application opens visitor-supplied URLs. Complete and verify all of the foll
 6. Terminate TLS at the reverse proxy, redirect HTTP to HTTPS, and set HSTS. Keep Uvicorn inaccessible from the public network.
 7. Set proxy request-size and response-time limits. PDF rendering accepts report HTML up to 1,000,000 characters and smoke runs have a 240-second execution budget; allow a reasonable buffer above those limits.
 8. Keep logs free of request bodies, report HTML, secrets, and database URLs. Use short retention and restrict log access.
+
+## Temporary public-submission block
+
+Until edge rate limiting is configured and verified, block `/api/report*` at the reverse proxy while leaving the homepage and `/health` available. The current Caddy deployment uses this route shape:
+
+```caddyfile
+handle /api/report* {
+    respond "Public smoke checks are temporarily disabled." 503
+}
+handle {
+    reverse_proxy validator:8010
+}
+```
+
+The `*` path matcher blocks both `/api/report` and `/api/report.pdf`. Validate the proxy configuration and confirm report requests return 503 before considering the public-submission gate closed. Remove this block only after edge rate limiting and its behavior have been tested.
 
 ## Deploying an instance
 
@@ -33,7 +48,7 @@ The application opens visitor-supplied URLs. Complete and verify all of the foll
 6. Start a staging container on the existing browser network under a separate name and alias. Set `APP_ENV=production`, `VALIDATOR_DNS_URL=http://resolver:8053`, and `VALIDATOR_HTTP_PROXY=http://egress:3128`; apply the same user, seccomp profile, read-only root, dropped capabilities, and resource limits as production.
 7. Run `python /app/check_network.py` inside that staging container. It must confirm direct egress is blocked, the proxy denies private/reserved/metadata destinations while allowing public HTTPS, and all three browsers are sandboxed and obey that policy. Do not route public requests to a build that fails any check.
 8. Set `COMPOSE_PROJECT_NAME` to the existing host stack name and `VALIDATOR_BROWSER_NETWORK` to its pre-existing isolated browser network. Replace only the `validator` service with `APP_COMMIT_SHA=<full-sha> VALIDATOR_IMAGE_TAG=<full-sha> docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.production.yaml up -d --no-deps validator`. Do not run a broad host stack update.
-9. Verify `GET /health` reports the showcase repository and the exact full commit SHA. Confirm the validator is healthy, the Caddy route still reaches it, and a representative smoke run and PDF download work. Re-run the network check in the production container.
+9. Verify `GET /health` reports the showcase repository and exact full commit SHA. Confirm the validator is healthy and rerun the network check in production. While the temporary public-submission block is active, verify a representative smoke report and PDF download in staging; after the edge limiter is configured, verify them through the public proxy.
 10. Keep the previous image ID available for rollback. If verification fails, set `VALIDATOR_IMAGE_TAG=rollback-current` and restart only the validator service; do not remove the preserved image until the new deployment is accepted.
 
 ## Configuration and data

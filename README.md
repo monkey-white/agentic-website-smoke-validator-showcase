@@ -2,7 +2,7 @@
 
 A portfolio proof of concept for running bounded, read-only smoke checks against public business websites. It uses FastAPI and Playwright to inspect a homepage, execute a small deterministic test plan, and return an HTML report with an optional PDF download.
 
-**Status:** Prototype. The showcase repository is being prepared as the source for the validator container on a shared production host. The source cutover is pending review and live verification; public URL checks remain subject to the deployment gates below.
+**Status:** Prototype. The production validator now runs from this showcase repository. Public report submissions are paused at the reverse proxy until edge rate limiting is configured and verified; the homepage and health endpoint remain available.
 
 ## What it does
 
@@ -21,6 +21,7 @@ The default plan is intentionally small and fixed. Adaptive test selection and r
 - Navigation is bounded to the submitted homepage and up to three same-origin links, with sensitive paths excluded.
 - Reports are not retained by the application. Report data is held in the browser tab; PDF rendering is a one-time request.
 - Production URL checks resolve through the host's internal resolver and route browser traffic through an isolated egress proxy. The proxy and host network must continue blocking private, loopback, link-local, reserved, and cloud metadata destinations, including redirects and subresources.
+- Public report and PDF endpoints are currently blocked at the reverse proxy until edge rate limiting is in place. The app's in-process run limit alone is not sufficient for public access.
 - Chromium sandboxing must be explicitly enabled and verified in the deployment environment. Review [the deployment guide](docs/DEPLOYMENT.md) before exposing an instance to public traffic.
 
 ## API
@@ -31,8 +32,8 @@ The default plan is intentionally small and fixed. Adaptive test selection and r
 | `GET` | `/` | Report runner UI |
 | `POST` | `/api/intake` | Normalize a submitted URL and return a site profile |
 | `POST` | `/api/test-plan` | Return the default deterministic smoke plan |
-| `POST` | `/api/report` | Execute the smoke plan and return an HTML report |
-| `POST` | `/api/report.pdf` | Render submitted report HTML as a PDF without retaining it |
+| `POST` | `/api/report` | Execute the smoke plan and return an HTML report; currently paused in production |
+| `POST` | `/api/report.pdf` | Render submitted report HTML as a PDF without retaining it; currently paused in production |
 
 ## Run locally
 
