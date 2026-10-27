@@ -2,7 +2,7 @@
 
 A portfolio proof of concept for running bounded, read-only smoke checks against public business websites. It uses FastAPI and Playwright to inspect a homepage, execute a small deterministic test plan, and return an HTML report with an optional PDF download.
 
-**Status:** Prototype. The repository contains the application and CI, but there is no active public demo deployment at this time.
+**Status:** Prototype. The showcase repository is being prepared as the source for the validator container on a shared production host. The source cutover is pending review and live verification; public URL checks remain subject to the deployment gates below.
 
 ## What it does
 
@@ -20,7 +20,7 @@ The default plan is intentionally small and fixed. Adaptive test selection and r
 - The standard report workflow accepts public websites only; it does not authenticate, submit forms, or change site data.
 - Navigation is bounded to the submitted homepage and up to three same-origin links, with sensitive paths excluded.
 - Reports are not retained by the application. Report data is held in the browser tab; PDF rendering is a one-time request.
-- URL validation alone does not protect browser subresources or prevent DNS changes during a request. A public deployment needs outbound network controls that block private, loopback, link-local, and cloud metadata destinations.
+- Production URL checks resolve through the host's internal resolver and route browser traffic through an isolated egress proxy. The proxy and host network must continue blocking private, loopback, link-local, reserved, and cloud metadata destinations, including redirects and subresources.
 - Chromium sandboxing must be explicitly enabled and verified in the deployment environment. Review [the deployment guide](docs/DEPLOYMENT.md) before exposing an instance to public traffic.
 
 ## API

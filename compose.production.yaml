@@ -1,0 +1,62 @@
+name: ${COMPOSE_PROJECT_NAME:?Set COMPOSE_PROJECT_NAME to the existing host stack name}
+
+services:
+  validator:
+    image: agentic-website-smoke-validator:${VALIDATOR_IMAGE_TAG:?Set VALIDATOR_IMAGE_TAG for the image being deployed}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_COMMIT_SHA: ${APP_COMMIT_SHA:?Set APP_COMMIT_SHA to the checked-out commit}
+    init: true
+    restart: unless-stopped
+    user: pwuser
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./deploy/seccomp_profile.json
+    environment:
+      APP_ENV: production
+      APP_REPOSITORY: monkey-white/agentic-website-smoke-validator-showcase
+      APP_COMMIT_SHA: ${APP_COMMIT_SHA:?Set APP_COMMIT_SHA to the checked-out commit}
+      VALIDATOR_DNS_URL: http://resolver:8053
+      VALIDATOR_HTTP_PROXY: http://egress:3128
+      XDG_CACHE_HOME: /tmp/validator-cache
+      XDG_CONFIG_HOME: /tmp/validator-config
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8010"
+      - --workers
+      - "1"
+      - --no-access-log
+      - --proxy-headers
+      - --forwarded-allow-ips=*
+    networks: [browser]
+    tmpfs: ["/tmp:size=536870912,mode=1777"]
+    shm_size: 512mb
+    mem_limit: 3g
+    cpus: 2
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=5)"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 15s
+
+networks:
+  browser:
+    external: true
+    name: ${VALIDATOR_BROWSER_NETWORK:?Set VALIDATOR_BROWSER_NETWORK to the existing isolated browser network}

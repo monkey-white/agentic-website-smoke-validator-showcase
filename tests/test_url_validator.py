@@ -67,6 +67,17 @@ def test_validate_public_url_rejects_non_public_address(monkeypatch, address):
         validate_public_url("https://example.com")
 
 
+def test_validate_public_url_rejects_malformed_dns_address(monkeypatch):
+    monkeypatch.setattr(
+        url_validator.socket,
+        "getaddrinfo",
+        lambda *_args, **_kwargs: [(None, None, None, None, ("not-an-ip", 0))],
+    )
+
+    with pytest.raises(ValueError, match="could not be resolved"):
+        validate_public_url("https://example.com")
+
+
 def test_validate_public_url_rejects_credentials():
     with pytest.raises(ValueError, match="must not include credentials"):
         validate_public_url("https://user:password@example.com")
