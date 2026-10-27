@@ -3,6 +3,7 @@ from app.services.test_planner import (
     create_default_smoke_test_plan,
     create_form_accessibility_test_case,
     create_form_availability_test_case,
+    create_image_accessibility_test_case,
 )
 
 
@@ -53,3 +54,12 @@ def test_create_form_accessibility_test_is_read_only():
     assert test_case.type == "Accessibility"
     assert test_case.automation_candidate is True
     assert "Do not focus, enter data, or submit any control" in test_case.steps
+
+
+def test_create_image_accessibility_test_is_read_only():
+    test_case = create_image_accessibility_test_case()
+
+    assert test_case.test_case_id == "SMK-008"
+    assert test_case.type == "Accessibility"
+    assert test_case.automation_candidate is True
+    assert "Do not click or otherwise interact with the images" in test_case.steps

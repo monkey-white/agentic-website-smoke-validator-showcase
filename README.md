@@ -11,11 +11,12 @@ A portfolio proof of concept for running bounded, read-only smoke checks against
 - Runs five deterministic smoke cases in Chromium, Firefox, or WebKit.
 - Adds a read-only form-availability check when a visible homepage form is detected; it never fills or submits the form.
 - Checks visible form controls for associated labels or accessible names without interacting with them.
+- Checks visible images for alternative text or decorative markup without interacting with them.
 - Records bounded console and network error evidence.
 - Renders a self-contained HTML report and a one-time PDF download.
 - Optionally uses a server-side OpenAI API key to explain selected diagnostics. The analyzer receives bounded diagnostic text, not page HTML, links, screenshots, or browser access. AI output cannot change deterministic results.
 
-The default plan is intentionally small. Reports add read-only form-availability and accessible-name checks when the homepage contains visible forms and controls; they never enter data or submit forms. Broader adaptive test selection and richer failure evidence remain roadmap items.
+The default plan is intentionally small. Reports add read-only form-availability, form-label, and image text-alternative checks when matching elements are visible; they never enter data, submit forms, or interact with images. These checks verify markup signals and do not judge the quality of alternative text. Broader adaptive test selection and richer failure evidence remain roadmap items.
 
 ## Safety and privacy boundaries
 
