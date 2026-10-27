@@ -21,6 +21,7 @@ from app.models.test_case import SmokeTestCase
 from app.services.navigation import navigate_to_page
 from app.services.browser_policy import browser_launch_options
 from app.services.smoke_execution_budget import SmokeExecutionBudget
+from app.services.test_planner import create_form_availability_test_case
 
 
 MAX_NAVIGATION_LINKS = 3
@@ -88,6 +89,7 @@ def execute_smoke_test_plan(
                     environment=environment,
                 )
 
+            test_cases = _select_adaptive_test_cases(page, test_cases)
             navigation_notes = [navigation.warning] if navigation.warning else []
             navigation_links = _get_safe_navigation_links(
                 page,
@@ -136,6 +138,25 @@ def _create_execution_environment(
         viewport_height=DEFAULT_VIEWPORT["height"],
         playwright_version=version("playwright"),
     )
+
+
+def _select_adaptive_test_cases(
+    page: Page,
+    test_cases: list[SmokeTestCase],
+) -> list[SmokeTestCase]:
+    if _has_visible_form(page) and not any(
+        test_case.test_case_id == "SMK-006" for test_case in test_cases
+    ):
+        return [*test_cases, create_form_availability_test_case()]
+    return test_cases
+
+
+def _has_visible_form(page: Page) -> bool:
+    return _visible_form_count(page) > 0
+
+
+def _visible_form_count(page: Page) -> int:
+    return page.locator("form:visible").count()
 
 
 def _execute_case(
@@ -212,6 +233,14 @@ def _evaluate_case(
                 [],
             )
         return False, "No visible footer container was found.", []
+
+    if test_case_id == "SMK-006":
+        form_count = _visible_form_count(page)
+        return (
+            form_count > 0,
+            f"Found {form_count} visible form(s); no data was entered or submitted.",
+            [],
+        )
 
     return False, "No deterministic executor is defined for this test case.", [
         "Test case was not executed."

@@ -9,11 +9,12 @@ A portfolio proof of concept for running bounded, read-only smoke checks against
 - Validates public HTTP(S) website URLs before browser navigation.
 - Discovers a bounded set of visible page signals, such as the title, headings, links, forms, and footer.
 - Runs five deterministic smoke cases in Chromium, Firefox, or WebKit.
+- Adds a read-only form-availability check when a visible homepage form is detected; it never fills or submits the form.
 - Records bounded console and network error evidence.
 - Renders a self-contained HTML report and a one-time PDF download.
 - Optionally uses a server-side OpenAI API key to explain selected diagnostics. The analyzer receives bounded diagnostic text, not page HTML, links, screenshots, or browser access. AI output cannot change deterministic results.
 
-The default plan is intentionally small and fixed. Adaptive test selection and richer failure evidence are roadmap items, not current features.
+The default plan is intentionally small. Reports add a read-only form-availability check when the homepage contains a visible form; the check never enters data or submits it. Broader adaptive test selection and richer failure evidence remain roadmap items.
 
 ## Safety and privacy boundaries
 
