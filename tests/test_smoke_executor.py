@@ -189,6 +189,8 @@ def test_execute_smoke_test_plan_runs_default_cases_with_safe_navigation(monkeyp
         "app.services.navigation.validate_public_url",
         lambda url: url,
     )
+    monkeypatch.setattr(smoke_executor, "_visible_form_count", lambda _page: 0)
+    monkeypatch.setattr(smoke_executor, "_visible_form_control_labels", lambda _page: [])
     test_cases = _default_test_cases()
 
     execution = execute_smoke_test_plan("https://example.com", test_cases)
@@ -225,6 +227,7 @@ def test_execute_smoke_test_plan_adds_form_check_when_a_form_is_visible(monkeypa
         lambda url: url,
     )
     monkeypatch.setattr(smoke_executor, "_visible_form_count", lambda _page: 1)
+    monkeypatch.setattr(smoke_executor, "_visible_form_control_labels", lambda _page: [])
 
     execution = execute_smoke_test_plan("https://example.com", _default_test_cases())
 
@@ -234,6 +237,34 @@ def test_execute_smoke_test_plan_adds_form_check_when_a_form_is_visible(monkeypa
     assert form_result.status == "Passed"
     assert form_result.actual_result == (
         "Found 1 visible form(s); no data was entered or submitted."
+    )
+
+
+def test_execute_smoke_test_plan_adds_label_check_when_form_controls_exist(monkeypatch):
+    context = FakePlaywrightContext()
+    monkeypatch.setattr(
+        "app.services.smoke_executor.sync_playwright",
+        lambda: context,
+    )
+    monkeypatch.setattr(
+        "app.services.navigation.validate_public_url",
+        lambda url: url,
+    )
+    monkeypatch.setattr(smoke_executor, "_visible_form_count", lambda _page: 1)
+    monkeypatch.setattr(
+        smoke_executor,
+        "_visible_form_control_labels",
+        lambda _page: [True, False],
+    )
+
+    execution = execute_smoke_test_plan("https://example.com", _default_test_cases())
+
+    label_result = next(
+        result for result in execution.results if result.test_case_id == "SMK-007"
+    )
+    assert label_result.status == "Failed"
+    assert label_result.actual_result == (
+        "Found 1 of 2 visible form control(s) without an accessible name."
     )
 
 
