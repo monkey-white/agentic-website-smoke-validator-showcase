@@ -24,6 +24,7 @@ from app.services.smoke_execution_budget import SmokeExecutionBudget
 from app.services.test_planner import (
     create_form_accessibility_test_case,
     create_form_availability_test_case,
+    create_image_accessibility_test_case,
 )
 
 
@@ -157,6 +158,11 @@ def _select_adaptive_test_cases(
         test_case.test_case_id == "SMK-007" for test_case in selected_test_cases
     ):
         selected_test_cases.append(create_form_accessibility_test_case())
+
+    if _visible_image_alternatives(page) and not any(
+        test_case.test_case_id == "SMK-008" for test_case in selected_test_cases
+    ):
+        selected_test_cases.append(create_image_accessibility_test_case())
     return selected_test_cases
 
 
@@ -196,6 +202,25 @@ def _visible_form_control_labels(page: Page) -> list[bool]:
               return hasLabel || hasAriaLabel || hasLabelledBy || hasTitle;
             })
         )
+        """
+    )
+
+
+def _visible_image_alternatives(page: Page) -> list[bool]:
+    return page.locator("img:visible").evaluate_all(
+        """
+        images => images.map(image => {
+          const role = (image.getAttribute("role") || "").toLowerCase();
+          const isDecorative = image.getAttribute("aria-hidden") === "true"
+            || ["presentation", "none"].includes(role);
+          const hasAlt = image.hasAttribute("alt");
+          const hasAriaLabel = Boolean((image.getAttribute("aria-label") || "").trim());
+          const hasLabelledBy = (image.getAttribute("aria-labelledby") || "")
+            .split(/\\s+/)
+            .filter(Boolean)
+            .some(id => Boolean(document.getElementById(id)?.textContent.trim()));
+          return isDecorative || hasAlt || hasAriaLabel || hasLabelledBy;
+        })
         """
     )
 
@@ -297,6 +322,26 @@ def _evaluate_case(
         return (
             True,
             f"All {len(control_labels)} visible form control(s) have accessible names; no data was entered or submitted.",
+            [],
+        )
+
+    if test_case_id == "SMK-008":
+        image_alternatives = _visible_image_alternatives(page)
+        if not image_alternatives:
+            return False, "No visible images remained to inspect.", []
+        missing_alternatives = sum(
+            not has_alternative for has_alternative in image_alternatives
+        )
+        if missing_alternatives:
+            return (
+                False,
+                f"Found {missing_alternatives} of {len(image_alternatives)} visible image(s) "
+                "without alternative text or decorative markup.",
+                [],
+            )
+        return (
+            True,
+            f"All {len(image_alternatives)} visible image(s) have text alternatives or are marked decorative.",
             [],
         )
 

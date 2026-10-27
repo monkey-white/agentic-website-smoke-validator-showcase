@@ -40,6 +40,25 @@ def create_form_accessibility_test_case() -> SmokeTestCase:
     )
 
 
+def create_image_accessibility_test_case() -> SmokeTestCase:
+    return SmokeTestCase(
+        test_case_id="SMK-008",
+        title="Verify visible images have text alternatives or are decorative",
+        priority="Medium",
+        type="Accessibility",
+        preconditions=["At least one visible image is present on the homepage"],
+        steps=[
+            "Inspect visible image elements for alternative text",
+            "Accept empty alternative text or explicit decorative markup",
+            "Do not click or otherwise interact with the images",
+        ],
+        expected_result=(
+            "Every visible image has alternative text or is explicitly decorative."
+        ),
+        automation_candidate=True,
+    )
+
+
 def create_default_smoke_test_plan(site_profile: SiteProfile) -> list[SmokeTestCase]:
     return [
         SmokeTestCase(
