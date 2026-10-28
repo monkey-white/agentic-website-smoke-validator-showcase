@@ -15,13 +15,9 @@ def test_test_plan_returns_normalized_url_and_default_smoke_tests():
     assert response.status_code == 200
     response_body = response.json()
     assert response_body["website_url"] == "https://example.com"
-    assert response_body["test_count"] == 5
+    assert response_body["test_count"] == 20
     assert [test["test_case_id"] for test in response_body["tests"]] == [
-        "SMK-001",
-        "SMK-002",
-        "SMK-003",
-        "SMK-004",
-        "SMK-005",
+        f"SMK-{number:03}" for number in range(1, 21)
     ]
 
 

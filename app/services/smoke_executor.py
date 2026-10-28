@@ -253,6 +253,66 @@ def _visible_link_accessible_names(page: Page) -> list[bool]:
     )
 
 
+def _visible_buttons_have_accessible_names(page: Page) -> list[bool]:
+    return page.locator(
+        "button:visible, input[type='button']:visible, "
+        "input[type='submit']:visible, input[type='reset']:visible"
+    ).evaluate_all(
+        """
+        buttons => buttons.map(button => {
+          const hasAriaLabel = Boolean((button.getAttribute("aria-label") || "").trim());
+          const hasLabelledBy = (button.getAttribute("aria-labelledby") || "")
+            .split(/\\s+/)
+            .filter(Boolean)
+            .some(id => Boolean(document.getElementById(id)?.textContent.trim()));
+          const text = button.innerText || button.value || "";
+          const hasTitle = Boolean((button.getAttribute("title") || "").trim());
+          return Boolean(text.trim()) || hasAriaLabel || hasLabelledBy || hasTitle;
+        })
+        """
+    )
+
+
+def _page_quality_signals(page: Page) -> dict[str, object]:
+    return page.evaluate(
+        """
+        () => {
+          const isVisible = element => {
+            const style = window.getComputedStyle(element);
+            const bounds = element.getBoundingClientRect();
+            return style.display !== "none" && style.visibility !== "hidden"
+              && bounds.width > 0 && bounds.height > 0;
+          };
+          const viewport = document.querySelector('meta[name="viewport"]');
+          const description = document.querySelector('meta[name="description"]');
+          const headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"))
+            .filter(isVisible)
+            .map(heading => Number(heading.tagName.slice(1)));
+          const ids = Array.from(document.querySelectorAll("[id]"))
+            .map(element => element.id);
+          const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+          return {
+            documentLanguage: (document.documentElement.getAttribute("lang") || "").trim(),
+            responsiveViewport: Boolean(
+              viewport && /(?:^|[,;]\\s*)width\\s*=\\s*device-width/i.test(viewport.content)
+            ),
+            visibleMainCount: Array.from(document.querySelectorAll("main, [role='main']"))
+              .filter(isVisible).length,
+            visibleH1Count: Array.from(document.querySelectorAll("h1")).filter(isVisible).length,
+            headingLevels: headings,
+            horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth)
+              > window.innerWidth,
+            descriptionPresent: Boolean(description),
+            descriptionHasText: Boolean(description && description.content.trim()),
+            hasTimedRefresh: Array.from(document.querySelectorAll("meta[http-equiv]"))
+              .some(meta => meta.httpEquiv.toLowerCase() === "refresh"),
+            duplicateIdCount: new Set(duplicateIds).size
+          };
+        }
+        """
+    )
+
+
 def _execute_case(
     test_case: SmokeTestCase,
     page: Page,
@@ -276,7 +336,7 @@ def _execute_case(
     return SmokeTestResult(
         test_case_id=test_case.test_case_id,
         title=test_case.title,
-        status="Passed" if passed else "Failed",
+        status="Skipped" if passed is None else "Passed" if passed else "Failed",
         actual_result=actual_result,
         duration_seconds=round(perf_counter() - started_at, 3),
         console_errors=list(console_errors),
@@ -292,7 +352,7 @@ def _evaluate_case(
     website_url: str,
     navigation_links: list[str],
     execution_budget: SmokeExecutionBudget,
-) -> tuple[bool, str, list[str]]:
+) -> tuple[bool | None, str, list[str]]:
     execution_budget.raise_if_expired()
     if test_case_id == "SMK-001":
         has_content = page.locator("body:visible").count() > 0
@@ -330,8 +390,10 @@ def _evaluate_case(
 
     if test_case_id == "SMK-006":
         form_count = _visible_form_count(page)
+        if form_count == 0:
+            return None, "No visible form is present; this check is not applicable.", []
         return (
-            form_count > 0,
+            True,
             f"Found {form_count} visible form(s); no data was entered or submitted.",
             [],
         )
@@ -339,7 +401,11 @@ def _evaluate_case(
     if test_case_id == "SMK-007":
         control_labels = _visible_form_control_labels(page)
         if not control_labels:
-            return False, "No visible form controls remained to inspect.", []
+            return (
+                None,
+                "No visible form controls are present; this check is not applicable.",
+                [],
+            )
         unlabeled_count = sum(not has_label for has_label in control_labels)
         if unlabeled_count:
             return (
@@ -356,7 +422,11 @@ def _evaluate_case(
     if test_case_id == "SMK-008":
         image_alternatives = _visible_image_alternatives(page)
         if not image_alternatives:
-            return False, "No visible images remained to inspect.", []
+            return (
+                None,
+                "No visible images are present; this check is not applicable.",
+                [],
+            )
         missing_alternatives = sum(
             not has_alternative for has_alternative in image_alternatives
         )
@@ -376,7 +446,11 @@ def _evaluate_case(
     if test_case_id == "SMK-009":
         accessible_names = _visible_link_accessible_names(page)
         if not accessible_names:
-            return False, "No visible links remained to inspect.", []
+            return (
+                None,
+                "No visible links are present; this check is not applicable.",
+                [],
+            )
         unnamed_count = sum(not has_name for has_name in accessible_names)
         if unnamed_count:
             return (
@@ -391,9 +465,142 @@ def _evaluate_case(
             [],
         )
 
+    if test_case_id.startswith("SMK-") and test_case_id[4:].isdigit():
+        test_number = int(test_case_id[4:])
+        if 10 <= test_number <= 20:
+            return _evaluate_page_quality_case(test_number, page)
+
     return False, "No deterministic executor is defined for this test case.", [
         "Test case was not executed."
     ]
+
+
+def _evaluate_page_quality_case(
+    test_number: int,
+    page: Page,
+) -> tuple[bool | None, str, list[str]]:
+    if test_number == 15:
+        image_loads = page.locator("img:visible").evaluate_all(
+            "images => images.map(image => image.complete && image.naturalWidth > 0)"
+        )
+        if not image_loads:
+            return (
+                None,
+                "No visible images are present; this check is not applicable.",
+                [],
+            )
+        broken_count = sum(not loaded for loaded in image_loads)
+        if broken_count:
+            return (
+                False,
+                f"Found {broken_count} of {len(image_loads)} visible image(s) that did not load.",
+                [],
+            )
+        return True, f"All {len(image_loads)} visible image(s) loaded successfully.", []
+
+    if test_number == 16:
+        button_names = _visible_buttons_have_accessible_names(page)
+        if not button_names:
+            return (
+                None,
+                "No visible buttons are present; this check is not applicable.",
+                [],
+            )
+        unnamed_count = sum(not has_name for has_name in button_names)
+        if unnamed_count:
+            return (
+                False,
+                f"Found {unnamed_count} of {len(button_names)} visible button(s) "
+                "without an accessible name.",
+                [],
+            )
+        return True, f"All {len(button_names)} visible button(s) have accessible names.", []
+
+    signals = _page_quality_signals(page)
+    if test_number == 10:
+        has_language = bool(signals["documentLanguage"])
+        actual = (
+            "The document language is declared."
+            if has_language
+            else "The root HTML element has no language declared."
+        )
+        return has_language, actual, []
+    if test_number == 11:
+        configured = bool(signals["responsiveViewport"])
+        actual = (
+            "Responsive viewport metadata is configured."
+            if configured
+            else "No width=device-width viewport metadata was found."
+        )
+        return configured, actual, []
+    if test_number == 12:
+        has_main = int(signals["visibleMainCount"]) > 0
+        actual = (
+            "A visible main landmark is present."
+            if has_main
+            else "No visible main landmark was found."
+        )
+        return has_main, actual, []
+    if test_number == 13:
+        heading_count = int(signals["visibleH1Count"])
+        return (
+            heading_count == 1,
+            f"Found {heading_count} visible level-one heading(s); expected exactly one.",
+            [],
+        )
+    if test_number == 14:
+        heading_levels = list(signals["headingLevels"])
+        if not heading_levels:
+            return None, "No visible headings are present; this check is not applicable.", []
+        has_skips = heading_levels[0] != 1 or any(
+            current - previous > 1
+            for previous, current in zip(heading_levels, heading_levels[1:])
+        )
+        if has_skips:
+            return (
+                False,
+                "Visible heading levels skip a level or do not start with level one.",
+                [],
+            )
+        return True, "Visible heading levels progress without skips.", []
+    if test_number == 17:
+        overflow = bool(signals["horizontalOverflow"])
+        actual = (
+            "Page content fits the viewport width."
+            if not overflow
+            else "Page content overflows the viewport horizontally."
+        )
+        return not overflow, actual, []
+    if test_number == 18:
+        if not signals["descriptionPresent"]:
+            return (
+                None,
+                "No description meta element is configured; this check is not applicable.",
+                [],
+            )
+        has_description = bool(signals["descriptionHasText"])
+        actual = (
+            "The description meta element contains text."
+            if has_description
+            else "The description meta element is empty."
+        )
+        return has_description, actual, []
+    if test_number == 19:
+        has_refresh = bool(signals["hasTimedRefresh"])
+        actual = (
+            "No timed meta refresh directive is present."
+            if not has_refresh
+            else "A timed meta refresh directive is present."
+        )
+        return not has_refresh, actual, []
+
+    duplicate_count = int(signals["duplicateIdCount"])
+    actual = (
+        "All element IDs are unique."
+        if duplicate_count == 0
+        else f"Found {duplicate_count} duplicated element ID value(s)."
+    )
+    return duplicate_count == 0, actual, []
 
 
 def _check_navigation_links(

@@ -93,7 +93,7 @@ def test_create_report_runs_existing_workflow_and_returns_html(monkeypatch):
     assert response.status_code == 200
     assert captured == {
         "website_url": "https://example.com",
-        "test_case_ids": ["SMK-001", "SMK-002", "SMK-003", "SMK-004", "SMK-005"],
+        "test_case_ids": [f"SMK-{number:03}" for number in range(1, 21)],
         "browser_engine": BrowserEngine.FIREFOX,
     }
     assert "Smoke Test Report" in response.text
