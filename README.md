@@ -8,7 +8,7 @@ A portfolio proof of concept for running bounded, read-only smoke checks against
 
 - Validates public HTTP(S) website URLs before browser navigation.
 - Discovers a bounded set of visible page signals, such as the title, headings, links, forms, and footer.
-- Runs five deterministic smoke cases in Chromium, Firefox, or WebKit.
+- Runs 20 deterministic basic checks in Chromium, Firefox, or WebKit. Checks that do not apply to a page are marked Skipped.
 - Adds a read-only form-availability check when a visible homepage form is detected; it never fills or submits the form.
 - Checks visible form controls for associated labels or accessible names without interacting with them.
 - Checks visible images for alternative text or decorative markup without interacting with them.
@@ -17,7 +17,7 @@ A portfolio proof of concept for running bounded, read-only smoke checks against
 - Renders a self-contained HTML report and a one-time PDF download.
 - Optionally uses a server-side OpenAI API key to explain selected diagnostics. The analyzer receives bounded diagnostic text, not page HTML, links, screenshots, or browser access. AI output cannot change deterministic results.
 
-The default plan is intentionally small. Reports add read-only form-availability, form-label, image text-alternative, and link-name checks when matching elements are visible; they never enter data, submit forms, or activate links. These are markup heuristics and do not judge whether alternative text or link names are meaningful. Broader adaptive test selection and richer failure evidence remain roadmap items.
+The default plan contains 20 checks covering page loading, navigation, page structure, accessibility signals, and basic responsive behavior. Form, image, and button checks are marked Skipped when the relevant elements are absent. The accessibility checks are markup heuristics and do not judge whether alternative text or link names are meaningful. All checks are read-only; forms are never filled or submitted, and links are not activated by the accessibility checks.
 
 ## Safety and privacy boundaries
 

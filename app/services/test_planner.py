@@ -77,7 +77,7 @@ def create_link_accessibility_test_case() -> SmokeTestCase:
 
 
 def create_default_smoke_test_plan(site_profile: SiteProfile) -> list[SmokeTestCase]:
-    return [
+    test_cases = [
         SmokeTestCase(
             test_case_id="SMK-001",
             title="Verify homepage loads successfully",
@@ -163,3 +163,106 @@ def create_default_smoke_test_plan(site_profile: SiteProfile) -> list[SmokeTestC
             automation_candidate=True,
         ),
     ]
+
+    test_cases.extend(
+        [
+            create_form_availability_test_case(),
+            create_form_accessibility_test_case(),
+            create_image_accessibility_test_case(),
+            create_link_accessibility_test_case(),
+        ]
+    )
+    test_cases.extend(
+        [
+            _create_basic_test_case(
+                "SMK-010",
+                "Verify the document language is declared",
+                ["Inspect the root HTML element for a non-empty language value"],
+                "The root HTML element declares a language.",
+            ),
+            _create_basic_test_case(
+                "SMK-011",
+                "Verify responsive viewport metadata is configured",
+                ["Inspect the viewport meta element"],
+                "The viewport metadata includes width=device-width.",
+            ),
+            _create_basic_test_case(
+                "SMK-012",
+                "Verify a main content landmark is present",
+                ["Inspect the visible page for a main landmark"],
+                "A visible main element or main landmark is present.",
+            ),
+            _create_basic_test_case(
+                "SMK-013",
+                "Verify the page has one primary heading",
+                ["Count visible level-one headings"],
+                "Exactly one visible level-one heading is present.",
+            ),
+            _create_basic_test_case(
+                "SMK-014",
+                "Verify heading levels do not skip",
+                ["Inspect visible headings in document order"],
+                "Visible heading levels progress without skipping a level.",
+            ),
+            _create_basic_test_case(
+                "SMK-015",
+                "Verify visible images have loaded",
+                ["Check visible image elements for completed successful loads"],
+                "Every visible image has loaded successfully.",
+            ),
+            _create_basic_test_case(
+                "SMK-016",
+                "Verify visible buttons have accessible names",
+                ["Inspect visible buttons for text or an accessible name"],
+                "Every visible button has an accessible name.",
+            ),
+            _create_basic_test_case(
+                "SMK-017",
+                "Verify page content fits the standard viewport width",
+                ["Check for horizontal overflow at the standard browser viewport"],
+                "The page does not overflow horizontally at the standard viewport.",
+                test_type="Smoke",
+            ),
+            _create_basic_test_case(
+                "SMK-018",
+                "Verify the page has a non-empty meta description",
+                ["Inspect the description meta element when one is configured"],
+                "A configured description meta element contains text.",
+            ),
+            _create_basic_test_case(
+                "SMK-019",
+                "Verify the page does not trigger an automatic refresh",
+                ["Inspect meta elements for timed page refresh directives"],
+                "No timed meta refresh directive is present.",
+                test_type="Smoke",
+            ),
+            _create_basic_test_case(
+                "SMK-020",
+                "Verify element identifiers are unique",
+                ["Check the document for repeated id values"],
+                "Every id value is unique within the document.",
+                test_type="Accessibility",
+            ),
+        ]
+    )
+    return test_cases
+
+
+def _create_basic_test_case(
+    test_case_id: str,
+    title: str,
+    steps: list[str],
+    expected_result: str,
+    *,
+    test_type: str = "Accessibility",
+) -> SmokeTestCase:
+    return SmokeTestCase(
+        test_case_id=test_case_id,
+        title=title,
+        priority="Medium",
+        type=test_type,
+        preconditions=["The homepage has loaded successfully"],
+        steps=[*steps, "Do not enter data or activate controls"],
+        expected_result=expected_result,
+        automation_candidate=True,
+    )

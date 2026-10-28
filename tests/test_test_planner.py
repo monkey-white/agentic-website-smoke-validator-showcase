@@ -8,18 +8,21 @@ from app.services.test_planner import (
 )
 
 
-def test_create_default_smoke_test_plan_returns_five_tests():
+def test_create_default_smoke_test_plan_returns_twenty_tests():
     site_profile = SiteProfile(
         website_url="https://example.com",
         detected_website_type="Business Website",
         detected_browser="Chromium",
         smoke_scope="Basic Business Website Smoke Validation",
-        selected_test_count="5-10",
+        selected_test_count="20",
     )
 
     test_plan = create_default_smoke_test_plan(site_profile)
 
-    assert len(test_plan) == 5
+    assert len(test_plan) == 20
+    assert [case.test_case_id for case in test_plan] == [
+        f"SMK-{number:03}" for number in range(1, 21)
+    ]
 
 
 def test_create_default_smoke_test_plan_includes_homepage_test():
@@ -28,7 +31,7 @@ def test_create_default_smoke_test_plan_includes_homepage_test():
         detected_website_type="Business Website",
         detected_browser="Chromium",
         smoke_scope="Basic Business Website Smoke Validation",
-        selected_test_count="5-10",
+        selected_test_count="20",
     )
 
     test_plan = create_default_smoke_test_plan(site_profile)

@@ -8,4 +8,4 @@ def test_create_default_site_profile_returns_expected_defaults():
     assert profile.detected_website_type == "Business Website"
     assert profile.detected_browser == "Chromium"
     assert profile.smoke_scope == "Basic Business Website Smoke Validation"
-    assert profile.selected_test_count == "5-10"
+    assert profile.selected_test_count == "20"

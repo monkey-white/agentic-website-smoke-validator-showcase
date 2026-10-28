@@ -18,7 +18,7 @@ def test_intake_normalizes_website_url():
         "detected_website_type": "Business Website",
         "detected_browser": "Chromium",
         "smoke_scope": "Basic Business Website Smoke Validation",
-        "selected_test_count": "5-10",
+        "selected_test_count": "20",
     }
 
 

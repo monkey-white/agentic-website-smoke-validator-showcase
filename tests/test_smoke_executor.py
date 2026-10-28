@@ -1,6 +1,7 @@
 import pytest
 
 from app.models.browser_profile import BrowserEngine
+from app.models.site_profile import SiteProfile
 from app.models.test_case import SmokeTestCase
 from app.services.navigation import NavigationResult
 from app.services.smoke_executor import (
@@ -11,6 +12,7 @@ from app.services.smoke_executor import (
 )
 from app.services import smoke_executor
 from app.services.smoke_execution_budget import SmokeExecutionBudget
+from app.services.test_planner import create_default_smoke_test_plan
 from playwright.sync_api import Error as PlaywrightError
 
 
@@ -43,9 +45,12 @@ class FakeLocator:
         return FakeLocator(f"{self.selector} >> {selector}")
 
     def evaluate_all(self, _script: str):
-        if self.selector == "img:visible":
-            return []
-        if self.selector == "a[href]:visible":
+        if self.selector in {
+            "form:visible",
+            "img:visible",
+            "a[href]:visible",
+            "button:visible, input[type='button']:visible, input[type='submit']:visible, input[type='reset']:visible",
+        }:
             return []
         if self.selector.endswith(" >> a:visible"):
             return [
@@ -95,6 +100,20 @@ class FakePage:
 
     def locator(self, selector: str):
         return FakeLocator(selector)
+
+    def evaluate(self, _script: str):
+        return {
+            "documentLanguage": "en",
+            "responsiveViewport": True,
+            "visibleMainCount": 1,
+            "visibleH1Count": 1,
+            "headingLevels": [1, 2],
+            "horizontalOverflow": False,
+            "descriptionPresent": True,
+            "descriptionHasText": True,
+            "hasTimedRefresh": False,
+            "duplicateIdCount": 0,
+        }
 
     def close(self):
         self.closed = True
@@ -168,19 +187,14 @@ class FakePlaywrightContext:
 
 
 def _default_test_cases():
-    return [
-        SmokeTestCase(
-            test_case_id=f"SMK-00{index}",
-            title=f"Test {index}",
-            priority="High",
-            type="Smoke",
-            preconditions=[],
-            steps=[],
-            expected_result="Expected result",
-            automation_candidate=True,
-        )
-        for index in range(1, 6)
-    ]
+    site_profile = SiteProfile(
+        website_url="https://example.com",
+        detected_website_type="Business Website",
+        detected_browser="Chromium",
+        smoke_scope="Basic Business Website Smoke Validation",
+        selected_test_count="20",
+    )
+    return create_default_smoke_test_plan(site_profile)
 
 
 def test_execute_smoke_test_plan_runs_default_cases_with_safe_navigation(monkeypatch):
@@ -200,7 +214,15 @@ def test_execute_smoke_test_plan_runs_default_cases_with_safe_navigation(monkeyp
     execution = execute_smoke_test_plan("https://example.com", test_cases)
     results = execution.results
 
-    assert [result.status for result in results] == ["Passed"] * 5
+    assert len(results) == 20
+    assert all(result.status == "Passed" for result in results if result.test_case_id in {
+        "SMK-001", "SMK-002", "SMK-003", "SMK-004", "SMK-005",
+        "SMK-010", "SMK-011", "SMK-012", "SMK-013", "SMK-014",
+        "SMK-017", "SMK-018", "SMK-019", "SMK-020",
+    })
+    assert all(result.status == "Skipped" for result in results if result.test_case_id in {
+        "SMK-006", "SMK-007", "SMK-008", "SMK-009", "SMK-015", "SMK-016",
+    })
     assert execution.environment.browser_engine == "Chromium"
     assert execution.environment.browser_version == "123.0.4567.0"
     assert context.playwright.launch_arguments == {
@@ -440,7 +462,7 @@ def test_execute_smoke_test_plan_records_initial_navigation_duration(monkeypatch
         "https://example.com", _default_test_cases()
     ).results
 
-    assert [result.status for result in results] == ["Failed"] * 5
+    assert [result.status for result in results] == ["Failed"] * 20
     assert all(result.duration_seconds == 30.0 for result in results)
     assert all(result.notes == ["Timed out"] for result in results)
 
